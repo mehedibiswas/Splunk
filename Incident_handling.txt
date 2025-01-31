@@ -1,0 +1,64 @@
+              Incident Handling with Splunk
+
+
+How to identfiy attack?
+When analysis log with splunk if any attack is happen it can be identify by suricata log,as suricata log hold the alert messages.(We can add alert fields from left panel from more fields).
+What to do after finding an attack?
+After identifying the attack,we should think how the attacker able to attack for that we need to investigate actually what attacker did.To investigate what attacker do,we have to analysis the post requset send by attacker to server,we can use http_stream to filter all the http request,http_method to filter to post request,set dest_ip for the server,set src_ip to see the attacker ip,set uri to see where the attacker try attack,use http_user_agent to see which user_agent is used by the attacker,set form_data to add for seeing the input value used by attacker.We can also use Regular expression(reg) options to identify specific pattern or word like username or password.In the tryhackme room I identify the successful bruteforce password after seeing the http_user_agent where attacker try to bruteforce using python script,but after the successful bruteforce he use mojila firebox to login which make me clear that what password will be correct.For analysising all the thing I use | table to arrange the filter result in tabuler format. The final filter query options I  use 
+
+index="botsv1" imreallynotbatman.com source="stream:http" dest_ip="192.168.250.70" form_data=*username*passwd* http_method=POST uri="/joomla/administrator/index.php" http_user_agent
+| rex field=form_data "passwd=(?<pass>\w+)"
+| table_time dest_ip src_ip pass http_user_agent
+
+
+How find uploaded file by attacker?
+
+It's natural after a successful exploitation done by hacker he will try to make persistant access to that server for that he may be create a backdoor.
+Normally for creating a backdoor a hacker may be use executables files.Now it's time to identify any executables file uploaded by attacker.We can easily do that by using a filter *.exe on that search options.If he successfully uploaded a file on server now as a analyst my task is to find if he is able to run that script in server.If he is able to run that executables file then a process must be created.For that we analysis XmlWinEventLog (which is used for
+ sysmon log very important for analyst),WinEventLog etc from source fields.If any process is created by that executales file than created processEvent will be 1.Now for Try Hack me it was asked to identify name of exe file as well it's name and others' of that file too.
+--> To find exe file I used
+
+index="botsv1" imreallynotbatman.com dest_ip="192.168.250.70" *.exe "part_filename{}"="3791.exe"
+
+I set dest_ip to filter only server request,*.exe to check any exe is avaiable or not,part_filename{} to check how many file is present of exe with their actual name.
+(part_file{} is not present in the fields options,I manually added it from more fiels)
+
+
+-->To find hash
+
+index="botsv1" "3791.exe" EventID=1 EventCode=1 CommandLine="3791.exe"
+
+set EventCode=1 to see if process is created or not (from fields) and  CommandLine field is used to see if anything run from command Line and where I find the hash.
+
+
+-->To find other's name I upload the hash into virus total and look at details sections. 
+
+Now let's see if the website is defaced,what he did ,if he  uploads/downlaod any thing.If he did,how he did that?
+
+To find that I set the server as a source to see if server is generating any traffic to requset any others (It can possible because server is now controlled by hacker reverse shell injection is possible).I found that server is generating traffic with some external ip addresses.So I set dest_ip  each of them one by one to see what is going with http_uri fields.And I found one suspicious jpeg file which is the answer.
+
+In the second question it was asked that What is the name of the rule that was triggered during the SQL Injection attempt? (ip address of attacker given and log type is also mentioned)
+so I set the attacker ip as src and server ip as dest_ip and see the attack field and find the answer.
+
+
+Next in Command and Control Section:
+
+where the question is --
+This attack used dynamic DNS to resolve to the malicious IP. What fully qualified domain name (FQDN) is associated with this attack?
+
+Now to analyse from where to whom the traffic is going we need to analyse fortigate_utm log.
+For finding the answer I set the previously found jpeg file as a filter and in url section I found it.
+
+Weaponization Phase:
+
+In  this phase we do actully osint technique to search thing in google in diffent sites like:
+		1)virus total
+		2)whois.com
+		3)robtex
+		4)otx.alienvault.com
+　　　5)threadminer
+　　　6)hybride-analysis
+to find different subdomain,email address ip addresses others script used by the attackers etc.
+
+
+[tryhackme incident handling with Splunk]
